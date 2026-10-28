@@ -290,9 +290,8 @@ def FREQCOR_Read_EP(config, jsite):
                                                 format='ISO8601')
     else:
         meteo_data['datetime'] = pd.to_datetime(
-            meteo_data['date'] + ' ' + meteo_data['time'],
-            format='ISO8601')
-    
+            meteo_data['date'] + ' ' + meteo_data['time'], format='ISO8601')
+
     if vitale_qc_flags == 1:
         try:
             qc_files = glob.glob(os.path.join(vitale_path, jsite + '_vitale_qc_flags*.csv'))

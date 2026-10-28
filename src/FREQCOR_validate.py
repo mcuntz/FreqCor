@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Created on Tue Apr 8 2025
 
@@ -318,9 +318,13 @@ def validate_config(config):
                             )
 
     # Validate read_routine
-    if read_routine not in ['FREQCOR_Read_EP', 'FREQCOR_Read_TOF']:
+    if read_routine.lower() not in ['freqcor_read_ep',
+                                    'freqcor_read_tof',
+                                    'freqcor_read_geddysoft',
+                                    'freqcor_read_heddysoft']:
         valid = False
-        errors.append("read_routine must be one of: FREQCOR_Read_EP, FREQCOR_Read_TOF")
+        errors.append("read_routine must be one of: FREQCOR_Read_EP,"
+                      " FREQCOR_Read_TOF, FREQCOR_Read_HEddySoft")
     
     return valid, errors
 
