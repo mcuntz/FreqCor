@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 """General filtering utilities for (co)spectra and associated meteorological time series."""
 
@@ -72,9 +72,9 @@ def FREQCOR_Sel_general(Icon_raw, Rcon_raw, Icosp_raw, meteo_df, WS, WD,
     Icosp_sel = Icosp_raw.copy()
     
     # Series to array of float
-    FlagF_g = FlagF_g.values 
-    FlagF_H = FlagF_H.values
-    
+    FlagF_g = FlagF_g.values.copy()
+    FlagF_H = FlagF_H.values.copy()
+
     # Remove data when H is absent
     idx = FlagF_H==-9999
     meteo_df.loc[idx,'H'] = np.nan
@@ -93,7 +93,7 @@ def FREQCOR_Sel_general(Icon_raw, Rcon_raw, Icosp_raw, meteo_df, WS, WD,
         FlagF_g = FlagF_g.astype('float')
     if FlagF_H.dtype == 'int64' or FlagF_H.dtype == 'int32':
         FlagF_H = FlagF_H.astype('float')
-    
+
     FlagF_H[idx]=np.nan
     FlagF_g[idx]=np.nan
     FlagVM_T = FlagVM_T.astype('float')

@@ -282,13 +282,16 @@ def FREQCOR_Read_EP(config, jsite):
     fileb = glob.glob(os.path.join(dirname,'*'+foname+'*_adv*.csv'))[0]
     with open(fileb, mode='r') as file:
         meteo_data = pd.read_csv(file, header=1, na_values="-9999", skiprows=[2],
-                                low_memory=False, memory_map=True)
+                                 low_memory=False, memory_map=True)
     # Convert timestamp strings to datetime objects for filtering
     # If timestamp column doesn't exist, try to create it from date and time columns
     if 'timestamp' in meteo_data.columns:
-        meteo_data['datetime'] = pd.to_datetime(meteo_data['timestamp'])
+        meteo_data['datetime'] = pd.to_datetime(meteo_data['timestamp'],
+                                                format='ISO8601')
     else:
-        meteo_data['datetime'] = pd.to_datetime(meteo_data['date'] + ' ' + meteo_data['time'])
+        meteo_data['datetime'] = pd.to_datetime(
+            meteo_data['date'] + ' ' + meteo_data['time'],
+            format='ISO8601')
     
     if vitale_qc_flags == 1:
         try:

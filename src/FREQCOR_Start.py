@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 FREQCOR_Start.py: Main entry point for FREQCOR spectral/cospectral correction analysis
 =====================================================================================
@@ -93,8 +93,8 @@ import configparser
 # Runs the code directly with the .ini file provided.
 # Insert ini file to be processed
 manual = True
-if manual == True:
-    ini_file = r"..\examples\metadata\FREQCOR_config_example.ini"
+if manual:
+    ini_file = r"../examples/metadata/FREQCOR_config_example.ini"
 
     ini_file = ini_file.strip().strip('"')
     if not ini_file:
