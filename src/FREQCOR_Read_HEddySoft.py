@@ -119,14 +119,14 @@ def FREQCOR_Read_HEddySoft(config, jsite):
     # name pattern
     sdf = pd.DataFrame()
     idf = pd.DataFrame()
+    freqm = pd.DataFrame()
     icon = pd.DataFrame()
     rcon = pd.DataFrame()
     for filen in total_to_process:
 
         ldf = pickle.load(open(filen, 'rb'))
-        # ['TIMESTAMP_END', 'wT', 'wind_speed', 'wind_direction', 'u_star',
-        #  'z/L', 'num_spikes_w', 'itc_w', 'steady_state_wc_co2_Mahrt1998',
-        #  'steady_state_wc_h2o_Mahrt1998', 'F_co2', 'F_h2o']
+
+        # ['TIMESTAMP_END', 'wT', 'wind_speed', 'wind_direction', ...]
         isdf = ldf['scalar']
         sdf = pd.concat([sdf, isdf])
 
@@ -146,11 +146,16 @@ def FREQCOR_Read_HEddySoft(config, jsite):
         # freq, cospec_wT_scaled, spec_co2_scaled, cospec_wc_co2_scaled,
         # spec_h2o_scaled, cospec_wc_h2o_scaled
         spectral_df = ldf['spectral']
-        freqm = spectral_df['freq']
+        ifreq = spectral_df['freq'].values
 
-        iicon = pd.DataFrame(spectral_df['cospec_wT_scaled'].T,
-                             columns=freqm.values, index=isdf.index)
-        iicon.index.name = iicon.index.name
+        ifreqm = pd.DataFrame([spectral_df['freq'].to_numpy()],
+                              columns=ifreq, index=isdf.index)
+        ifreqm.index.name = isdf.index.name
+        freqm = pd.concat([freqm, ifreqm])
+
+        iicon = pd.DataFrame([spectral_df['cospec_wT_scaled'].to_numpy()],
+                             columns=ifreq, index=isdf.index)
+        iicon.index.name = isdf.index.name
         icon = pd.concat([icon, iicon])
 
         if config['PROCEDURE_OPTIONS']['sps'] == '1':
@@ -159,23 +164,39 @@ def FREQCOR_Read_HEddySoft(config, jsite):
         elif config['PROCEDURE_OPTIONS']['sps'] == '2':
             # Real spectral data from file (VOC)
             rron = spectral_df[f'spec_{species}_scaled']
-        ircon = pd.DataFrame(rron.T, columns=freqm.values, index=isdf.index)
-        ircon.index.name = ircon.index.name
+        ircon = pd.DataFrame([rron.to_numpy()],
+                             columns=ifreq, index=isdf.index)
+        ircon.index.name = isdf.index.name
         rcon = pd.concat([rcon, ircon])
 
     sdf = pd.concat([sdf, idf], axis=1)
-    sdf['H'] = sdf['wT'] * 1206.
+    sdf['Fc'] = sdf[f'F_{species}']
+    sdf['FcEP'] = sdf['Fc']
+    sdf['LEEP'] = sdf['LE']
+    sdf['wind_dir'] = sdf['wind_direction']
+
+    sdf = sdf.set_index(sdf.index.strftime('%Y%m%d-%H%M'))
+    freqm = freqm.set_index(freqm.index.strftime('%Y%m%d-%H%M'))
+    icon = icon.set_index(icon.index.strftime('%Y%m%d-%H%M'))
+    rcon = rcon.set_index(rcon.index.strftime('%Y%m%d-%H%M'))
+
+    # sdf = sdf.T
+    freqm = freqm.T
+    icon = icon.T
+    rcon = rcon.T
 
     # %% Preparation of variables
 
     # Natural frequency of each bin
-    freqn = np.divide(freqm * (float(config['EC_SETUP']['zmeas']) -
-                               float(config['EC_SETUP']['disph'])),
-                      sdf['wind_speed'].values.reshape(1, -1))
+    freqn = np.divide(
+        freqm * (float(config['EC_SETUP']['zmeas']) -
+                 float(config['EC_SETUP']['disph'])),
+        sdf['wind_speed'].values.reshape(1, -1))
     
     # create freqcount, the population in each bin.
     # Present in the EP outputs but not in the GEddySoft outputs
-    freqcount = calculate_freqcount(freqm.to_numpy(), 1800.0)
+    freq_array = freqm.iloc[:, 0].to_numpy()
+    freqcount = calculate_freqcount(freq_array, 1800.)
 
     # Division of (co)spectral density by frequency
     # (because GEddysoft output gives  f_nat*cospec/cov  or f_nat*spec/var)
@@ -187,9 +208,14 @@ def FREQCOR_Read_HEddySoft(config, jsite):
     # based on raw data flagging
     if apply_filtering:
         FlagVM_w, FlagVM_T, FlagVM_g, FlagF_H, FlagF_g = filtering(
-            sdf['HF5'], sdf['HD5'], sdf['KID'], sdf['DIP'], sdf['DDI'],
-            sdf[f'steady_state_wc_{species}_Mahrt1998'], sdf['ITC_w'],
-            sdf['OOR_w'])
+            sdf['HF5'].to_numpy(),
+            sdf['HD5'].to_numpy(),
+            sdf['KID'].to_numpy(),
+            sdf['DIP'].to_numpy(),
+            sdf['DDI'].to_numpy(),
+            sdf[f'steady_state_wc_{species}_Mahrt1998'].to_numpy(),
+            sdf['itc_w'].to_numpy(),
+            sdf['OOR_w'].to_numpy())
 
     # Remove freq bins fully filled with Nans
     idx = icon.notna().any(axis=1) & rcon.notna().any(axis=1)
@@ -202,27 +228,25 @@ def FREQCOR_Read_HEddySoft(config, jsite):
     idx = (icon.notna().any(axis=0) & 
            rcon.notna().any(axis=0) & 
            (~sdf['wind_speed'].isnull().values))
-
     freqm = freqm.loc[:, idx]
     freqn = freqn.loc[:, idx]
     icon = icon.loc[:, idx]
     rcon = rcon.loc[:, idx]
-    idx = idx.reset_index(drop=True)
+    idx = idx.to_numpy()
     sdf = sdf.loc[idx, :]
     FlagVM_w = FlagVM_w[idx]
     FlagVM_T = FlagVM_T[idx]
     FlagVM_g = FlagVM_g[idx]
     FlagF_H = FlagF_H[idx]
     FlagF_g = FlagF_g[idx]
-
     nspec = sum(idx)
     
     # Reset the indexes so to have a continuous integer series of indexes
     freqm = freqm.reset_index(drop=True)
     freqn = freqn.reset_index(drop=True)
     icon = icon.reset_index(drop=True)    
-    rcon = rcon.reset_index(drop=True)    
-    sdf = sdf.reset_index(drop=True)
+    rcon = rcon.reset_index(drop=True)
+    # sdf = sdf.reset_index(drop=True)
 
     # %% 
     
@@ -248,7 +272,7 @@ def FREQCOR_Read_HEddySoft(config, jsite):
 
         massman_coef = [A0, kf0, mu]
     else:
-        massman_coef = None
+        massman_coef = [np.nan, np.nan, np.nan]
 
     # create a copy of icon for further use
     icosp = icon.copy()
@@ -262,21 +286,24 @@ def FREQCOR_Read_HEddySoft(config, jsite):
     
         # First subplot: H flux
         axes[0].scatter(time, sdf['wT'], s=10, color='black', label='H flux')
-        axes[0].scatter(time[FlagVM_w > 0],
-                        sdf.loc[FlagVM_w > int(config['USER_LIMITS']['fvm']), 'H'],
-                        s=10, color='green',
-                        label=f'FlagVM_w > {config["USER_LIMITS"]["fvm"]}',
-                        alpha=0.7)
-        axes[0].scatter(time[FlagVM_T > 0],
-                        sdf.loc[FlagVM_T > int(config['USER_LIMITS']['fvm']), 'H'],
-                        s=10, color='purple',
-                        label=f'FlagVM_T > {config["USER_LIMITS"]["fvm"]}',
-                        alpha=0.7)
-        axes[0].scatter(time[FlagF_H > 0],
-                        sdf.loc[FlagF_H > int(config['USER_LIMITS']['ff']), 'H'],
-                        s=10, color='red',
-                        label=f'FlagF_H > {config["USER_LIMITS"]["ff"]}',
-                        alpha=0.7)
+        axes[0].scatter(
+            time[FlagVM_w > 0],
+            sdf.loc[(FlagVM_w > int(config['USER_LIMITS']['fvm'])).values, 'H'],
+            s=10, color='green',
+            label=f'FlagVM_w > {config["USER_LIMITS"]["fvm"]}',
+            alpha=0.7)
+        axes[0].scatter(
+            time[FlagVM_T > 0],
+            sdf.loc[(FlagVM_T > int(config['USER_LIMITS']['fvm'])).values, 'H'],
+            s=10, color='purple',
+            label=f'FlagVM_T > {config["USER_LIMITS"]["fvm"]}',
+            alpha=0.7)
+        axes[0].scatter(
+            time[FlagF_H > 0],
+            sdf.loc[(FlagF_H > int(config['USER_LIMITS']['ff'])).values, 'H'],
+            s=10, color='red',
+            label=f'FlagF_H > {config["USER_LIMITS"]["ff"]}',
+            alpha=0.7)
 
         percentile_90 = np.percentile(abs(sdf.loc[:, 'H']), 90)
         axes[0].axhline(y=percentile_90, color='red', linestyle='--',
@@ -293,32 +320,36 @@ def FREQCOR_Read_HEddySoft(config, jsite):
         # Second subplot: gas flux
         axes[1].scatter(time, sdf.loc[:, 'Fc'], s=10, color='black',
                         label='Fgas flux')
-
-        axes[1].scatter(time[FlagF_H > 0],
-                        sdf.loc[FlagF_H > int(config['USER_LIMITS']['ff']), 'Fc'],
-                        s=10, color='red',
-                        label=f'FlagF_H > {config["USER_LIMITS"]["ff"]}',
-                        alpha=0.7)
-        axes[1].scatter(time[FlagF_g > 0],
-                        sdf.loc[FlagF_g > int(config['USER_LIMITS']['ff']), 'Fc'],
-                        s=10, color='blue',
-                        label=f'FlagF_g > {config["USER_LIMITS"]["ff"]}',
-                        alpha=0.7)
-        axes[1].scatter(time[FlagVM_w > 0],
-                        sdf.loc[FlagVM_w > int(config['USER_LIMITS']['fvm']), 'Fc'],
-                        s=10, color='green',
-                        label=f'FlagVM_w > {config["USER_LIMITS"]["fvm"]}',
-                        alpha=0.7)
-        axes[1].scatter(time[FlagVM_T > 0],
-                        sdf.loc[FlagVM_T > int(config['USER_LIMITS']['fvm']), 'Fc'],
-                        s=10, color='purple',
-                        label=f'FlagVM_T > {config["USER_LIMITS"]["fvm"]}',
-                        alpha=0.7)
-        axes[1].scatter(time[FlagVM_g > 0],
-                        sdf.loc[FlagVM_g > int(config['USER_LIMITS']['fvm']), 'Fc'],
-                        s=10, color='orange',
-                        label=f'FlagVM_g > {config["USER_LIMITS"]["fvm"]}',
-                        alpha=0.7)
+        axes[1].scatter(
+            time[FlagF_H > 0],
+            sdf.loc[(FlagF_H > int(config['USER_LIMITS']['ff'])).values, 'Fc'],
+            s=10, color='red',
+            label=f'FlagF_H > {config["USER_LIMITS"]["ff"]}',
+            alpha=0.7)
+        axes[1].scatter(
+            time[FlagF_g > 0],
+            sdf.loc[(FlagF_g > int(config['USER_LIMITS']['ff'])).values, 'Fc'],
+            s=10, color='blue',
+            label=f'FlagF_g > {config["USER_LIMITS"]["ff"]}',
+            alpha=0.7)
+        axes[1].scatter(
+            time[FlagVM_w > 0],
+            sdf.loc[(FlagVM_w > int(config['USER_LIMITS']['fvm'])).values, 'Fc'],
+            s=10, color='green',
+            label=f'FlagVM_w > {config["USER_LIMITS"]["fvm"]}',
+            alpha=0.7)
+        axes[1].scatter(
+            time[FlagVM_T > 0],
+            sdf.loc[(FlagVM_T > int(config['USER_LIMITS']['fvm'])).values, 'Fc'],
+            s=10, color='purple',
+            label=f'FlagVM_T > {config["USER_LIMITS"]["fvm"]}',
+            alpha=0.7)
+        axes[1].scatter(
+            time[FlagVM_g > 0],
+            sdf.loc[(FlagVM_g > int(config['USER_LIMITS']['fvm'])).values, 'Fc'],
+            s=10, color='orange',
+            label=f'FlagVM_g > {config["USER_LIMITS"]["fvm"]}',
+            alpha=0.7)
 
         percentile_90 = np.percentile(abs(sdf.loc[:, 'Fc']), 90)
         axes[1].axhline(y=percentile_90, color='red', linestyle='--',
@@ -342,10 +373,15 @@ def FREQCOR_Read_HEddySoft(config, jsite):
         else:
             plt.show()
 
-    # remove the timestamp column
-    sdf = sdf.iloc[:, 1:]
+    icon = icon.reset_index(drop=True)
+    rcon = rcon.reset_index(drop=True)
+    icosp = icosp.reset_index(drop=True)
+    freq = freq.reset_index(drop=True)
+    freqn = freqn.reset_index(drop=True)
+    freqcount = freqcount.reset_index(drop=True)
+    sdf = sdf.reset_index(drop=True)
+
     return [nspec, icon, rcon, icosp, nfreq, freq, freqn, freqcount,
-            sdf, sdf['wind_speed'], sdf['wind_direction'], sdf['u_star'],
-            sdf['z/L'],
-            FlagF_H, FlagF_g, FlagVM_w, FlagVM_T, FlagVM_g,
+            sdf, sdf['wind_speed'], sdf['wind_dir'], sdf['u_star'],
+            sdf['z/L'], FlagF_H, FlagF_g, FlagVM_w, FlagVM_T, FlagVM_g,
             massman_coef]
