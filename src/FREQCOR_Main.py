@@ -154,21 +154,26 @@ def FREQCOR_Main(config):
         (nspec, Icon_raw, Rcon_raw, Icosp_raw, nfreq, freq, freqn, freqcount,
          meteo_df, WS, WD, Ustar, Zeta, FlagF_H, FlagF_g, FlagVM_w, FlagVM_T,
          FlagVM_g, flag_wd, massman_coef) = FREQCOR_Read_EP(config, jsite)
+
     elif read_routine.lower() in ['freqcor_read_tof',
                                   'freqcor_read_geddysoft',
                                   'freqcor_read_heddysoft']:
+        
         if read_routine.lower() == 'freqcor_read_tof':
             readfunc = FREQCOR_Read_TOF
         elif read_routine.lower() == 'freqcor_read_geddysoft':
             readfunc = FREQCOR_Read_GEddySoft
         elif read_routine.lower() == 'freqcor_read_heddysoft':
-            readfunc = FREQCOR_Read_HEddySoft           
-        (nspec, Icon_raw, Rcon_raw, Icosp_raw, nfreq, freq, freqn, meteo_df,
-         WS, WD, Ustar, Zeta, FlagF_H, FlagF_g, FlagVM_w, FlagVM_T, FlagVM_g,
-         massman_coef) = readfunc(config, jsite)
-        freqcount = pd.Series(320 * np.asarray(freq),
-                              index=getattr(freq, 'index', None))
+            readfunc = FREQCOR_Read_HEddySoft
+
+        (nspec, Icon_raw, Rcon_raw, Icosp_raw, nfreq, freq, freqn, freqcount,
+         meteo_df, WS, WD, Ustar, Zeta, FlagF_H, FlagF_g, FlagVM_w, FlagVM_T,
+         FlagVM_g, massman_coef) = readfunc(config, jsite)
+
+        # freqcount = pd.Series(320 * np.asarray(freq),
+        #                       index=getattr(freq, 'index', None))
         flag_wd = pd.Series(np.nan, index=FlagF_H.index)
+
     else:
         raise FREQCORMainError(f"Unknown read_routine: {read_routine}")
 
@@ -190,7 +195,7 @@ def FREQCOR_Main(config):
     print("\n=== Computing cof/CF ===")
     print("  Computing cut-off frequencies and correction factors")
     (LUT_cof, classize, LUTCF_u, matsortCF_u, classizeCF_u, LUTCF_s,
-     matsortCF_s, classizeCF_s)= FREQCOR_Compute(
+     matsortCF_s, classizeCF_s) = FREQCOR_Compute(
          Icon_sel, Rcon_sel, Icosp_sel, nspec, nfreq, gss, sps,
          classnum_first, classnum, classnumCF_u, classnumCF_s,
          WS, WD, Zeta, meteo_df, hl_cof_min, fcl_cof_min, lel_cof_min,
