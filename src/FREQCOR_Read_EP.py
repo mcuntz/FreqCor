@@ -780,19 +780,19 @@ def FREQCOR_Read_EP(config, jsite):
                      f"{file_prefix}_freqn.pkl",
                      f"{file_prefix}_meteo_df.pkl",
                      f"{file_prefix}_freq.pkl",
-                    f"{file_prefix}_freqcount.pkl",
-                    f"{file_prefix}_WS.pkl",
-                    f"{file_prefix}_WD.pkl",
-                    f"{file_prefix}_Ustar.pkl",
-                    f"{file_prefix}_Zeta.pkl",
-                    f"{file_prefix}_FlagF_H.pkl",
-                    f"{file_prefix}_FlagF_g.pkl",
-                    f"{file_prefix}_FlagVM_w.npy",
-                    f"{file_prefix}_FlagVM_T.npy",
-                    f"{file_prefix}_FlagVM_g.npy",
-                    f"{file_prefix}_massman_coef.npy",
-                    f"{file_prefix}_scalar_values.json"
-                ]
+                     f"{file_prefix}_freqcount.pkl",
+                     f"{file_prefix}_WS.pkl",
+                     f"{file_prefix}_WD.pkl",
+                     f"{file_prefix}_Ustar.pkl",
+                     f"{file_prefix}_Zeta.pkl",
+                     f"{file_prefix}_FlagF_H.pkl",
+                     f"{file_prefix}_FlagF_g.pkl",
+                     f"{file_prefix}_FlagVM_w.npy",
+                     f"{file_prefix}_FlagVM_T.npy",
+                     f"{file_prefix}_FlagVM_g.npy",
+                     f"{file_prefix}_massman_coef.npy",
+                     f"{file_prefix}_scalar_values.json"
+                 ]
             }
             with open(os.path.join(output_dir, f"{file_prefix}_metadata.json"), 'w') as f:
                 json.dump(metadata, f, indent=4)
@@ -806,7 +806,10 @@ def FREQCOR_Read_EP(config, jsite):
     del FlagVM_dh
     del Icosbrut
     del Rcosbrut
-    return [nspec, Icon_raw, Rcon_raw, Icosp_raw, nfreq, freq, freqn, freqcount, meteo_df, WS, WD, Ustar, 
-             Zeta, FlagF_H, FlagF_g, FlagVM_w, FlagVM_T, FlagVM_g, flag_wd, massman_coef]
 
-
+    return [nspec, Icon_raw, Rcon_raw, Icosp_raw,
+            nfreq, freq, freqn, freqcount,
+            meteo_df, WS, WD, Ustar, Zeta,
+            FlagF_H, FlagF_g, FlagVM_w, FlagVM_T, FlagVM_g,
+            flag_wd,
+            massman_coef]
