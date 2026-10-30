@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 """Selection utilities for filtering (co)spectra used in correction factor computation."""
 
@@ -95,13 +95,13 @@ def FREQCOR_Sel_CF(Icos_CF, freq, sts, meteo_df, Hlcfu, Hlcfs,
         (FlagF_H > FF) 
     )
     
-    flag_mask = pd.Series(~flagged,index=Icos_CF_filt.columns)
+    flag_mask = pd.Series(~flagged, index=Icos_CF_filt.columns, dtype=bool)
     
     valid_mask = flux_mask & flag_mask
     Icos_CF_filt.iloc[:, ~valid_mask] = np.nan
     
     mask_history = [flux_mask,
-             flag_mask]
+                    flag_mask]
     step_names = ['Flux thresholds',
                   'VM and FF flags']
     
